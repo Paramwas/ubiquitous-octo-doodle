@@ -1,0 +1,52 @@
+@app.route('/transactions', methods=['GET', 'POST'])
+def get_transactions():
+    if request.method == 'POST':
+        data = request.json
+        if not data:
+            return jsonify({'status': 'failure', 'reason': 'No data provided'}), 400
+
+        try:
+            with sqlite3.connect('messages.db') as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    INSERT INTO transactions (transaction_type, trans_id, trans_time, trans_amount, business_short_code, 
+                    bill_ref_number, invoice_number, org_account_balance, third_party_trans_id, msisdn, first_name, 
+                    middle_name, last_name, timestamp)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, strftime('%s','now'))
+                """, (
+                    data.get('TransactionType'), 
+                    data.get('TransID'), 
+                    data.get('TransTime'), 
+                    data.get('TransAmount'),
+                    data.get('BusinessShortCode'), 
+                    data.get('BillRefNumber'), 
+                    data.get('InvoiceNumber'),
+                    data.get('OrgAccountBalance'), 
+                    data.get('ThirdPartyTransID'), 
+                    data.get('MSISDN'),
+                    data.get('FirstName'), 
+                    data.get('MiddleName'), 
+                    data.get('LastName')
+                ))
+                conn.commit()
+        except sqlite3.Error as e:
+            return jsonify({'status': 'failure', 'reason': str(e)}), 500
+
+        return jsonify({'status': 'success'}), 201
+
+    with sqlite3.connect('messages.db') as conn:
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM transactions ORDER BY timestamp DESC')
+        rows = cursor.fetchall()
+
+    transactions = []
+    for row in rows:
+        transactions.append({
+            'id': row[0], 'transaction_type': row[1], 'trans_id': row[2], 'trans_time': row[3],
+            'trans_amount': row[4], 'business_short_code': row[5], 'bill_ref_number': row[6],
+            'invoice_number': row[7], 'org_account_balance': row[8], 'third_party_trans_id': row[9],
+            'msisdn': row[10], 'first_name': row[11], 'middle_name': row[12], 'last_name': row[13],
+            'timestamp': row[14]
+        })
+
+    return jsonify(transactions)
